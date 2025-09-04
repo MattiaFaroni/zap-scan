@@ -1,0 +1,85 @@
+plugins {
+	id 'java'
+    id 'com.diffplug.spotless' version '7.2.1'
+	id 'org.springframework.boot' version '3.5.5'
+	id 'io.spring.dependency-management' version '1.1.7'
+    id("com.github.johnrengelman.shadow") version "8.1.1"
+}
+
+group = 'com.security.zap'
+description = 'zap-scan'
+version = '1.0.0'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+    springVersion = '3.5.3'
+    lombokVersion = '1.18.38'
+}
+
+dependencies {
+
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+    compileOnly("org.projectlombok:lombok:${lombokVersion}")
+
+    implementation("org.postgresql:postgresql:42.7.7")
+
+    implementation("org.zaproxy:zap-clientapi:1.16.0")
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.5")
+
+    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.30")
+
+    implementation("org.springframework.boot:spring-boot-starter-mail:${springVersion}")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springVersion}")
+    implementation("org.springframework.boot:spring-boot-starter-web:${springVersion}")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:${springVersion}")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:${springVersion}")
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+spotless {
+    java {
+        target("src/**/*.java")
+        toggleOffOn()
+        palantirJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        leadingSpacesToTabs()
+        endWithNewline()
+    }
+}
+
+tasks.register('generateBuildProperties') {
+    doLast {
+        def propertyFile = file('build.properties')
+        def props = new Properties()
+        if (propertyFile.exists()) {
+            propertyFile.withReader { props.load(it) }
+        }
+        props.setProperty('projectName', project.name.toString())
+        props.setProperty('releaseDate', new Date().format('yyyy-MM-dd-HH:mm:ss'))
+        props.setProperty('projectVersion', version.toString())
+        propertyFile.withWriter { props.store(it, null) }
+    }
+}
+
+tasks.named('shadowJar') {
+    archiveFileName.set('EgonZap.jar')
+
+    from('/') {
+        include 'CHANGELOG.md'
+        include 'build.properties'
+    }
+    dependsOn generateBuildProperties
+}
