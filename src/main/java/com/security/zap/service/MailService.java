@@ -1,5 +1,6 @@
 package com.security.zap.service;
 
+import io.sentry.Sentry;
 import jakarta.mail.internet.MimeMessage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +47,7 @@ public class MailService {
 		try {
 			htmlContent = loadReportTemplate();
 		} catch (Exception e) {
+			Sentry.captureException(e);
 			log.error("Report template loading error, email will NOT be sent", e);
 			throw e;
 		}

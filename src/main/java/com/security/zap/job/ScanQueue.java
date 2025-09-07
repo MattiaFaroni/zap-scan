@@ -7,6 +7,7 @@ import com.security.zap.repository.ReportRepository;
 import com.security.zap.service.MailService;
 import com.security.zap.service.ZapService;
 import com.security.zap.utils.HtmlToPdfConverter;
+import io.sentry.Sentry;
 import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -62,6 +63,7 @@ public class ScanQueue {
 		try {
 			queue.put(job);
 		} catch (InterruptedException e) {
+			Sentry.captureException(e);
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("Interrupted while enqueuing scan job", e);
 		}
@@ -79,10 +81,12 @@ public class ScanQueue {
 				ScanJob job = queue.take();
 				runScan(job);
 			} catch (InterruptedException e) {
+				Sentry.captureException(e);
 				Thread.currentThread().interrupt();
 				log.warn("Worker thread interrupted, stopping queue processing", e);
 				break;
 			} catch (Exception e) {
+				Sentry.captureException(e);
 				log.error("Unexpected error while processing queue job", e);
 			}
 		}
@@ -116,10 +120,12 @@ public class ScanQueue {
 				mailService.sendPdfReports(attachments);
 				log.info("Email with {} reports sent successfully", attachments.size());
 			} catch (Exception e) {
+				Sentry.captureException(e);
 				log.error("Error sending email with PDF reports", e);
 			}
 
 		} catch (Exception e) {
+			Sentry.captureException(e);
 			log.error("Error while executing scan job", e);
 			sendEventSafe(emitter, "error", "Error: " + e.getMessage());
 			emitter.completeWithError(e);
@@ -199,6 +205,7 @@ public class ScanQueue {
 		try {
 			emitter.send(SseEmitter.event().name(name).data(data));
 		} catch (Exception e) {
+			Sentry.captureException(e);
 			log.warn("Failed to send SSE event [{}: {}]", name, data, e);
 		}
 	}
