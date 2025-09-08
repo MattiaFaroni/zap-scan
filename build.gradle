@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
 	id 'java'
     id 'com.diffplug.spotless' version '7.2.1'
@@ -42,11 +44,14 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springVersion}")
     implementation("org.springframework.boot:spring-boot-starter-web:${springVersion}")
     testImplementation("org.springframework.boot:spring-boot-starter-test:${springVersion}")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:${springVersion}")
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
 }
 
 spotless {
@@ -75,7 +80,7 @@ tasks.register('generateBuildProperties') {
     }
 }
 
-tasks.named('shadowJar') {
+tasks.named('shadowJar', ShadowJar) {
     archiveFileName.set('EgonZap.jar')
 
     from('/') {

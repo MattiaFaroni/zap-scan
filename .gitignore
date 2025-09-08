@@ -40,3 +40,4 @@ out/
 ### Data ###
 docker/*
 config/*
+build.properties
