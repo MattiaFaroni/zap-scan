@@ -143,4 +143,21 @@ public class ZapService {
 		int progress = root.has("status") ? root.get("status").asInt() : 100;
 		return progress < 100;
 	}
+
+	/**
+	 * Checks if the ZAP service is currently running.
+	 * @return true if the ZAP service is running and a version is detected, false otherwise
+	 */
+	public boolean isZapRunning() {
+		try {
+			String response = callZap(ZAP_API + "/JSON/core/view/version/?apikey=" + ZAP_KEY);
+			if (response != null) {
+				JsonNode jsonNode = mapper.readTree(response);
+				return jsonNode.has("version");
+			}
+			return false;
+		} catch (Exception e) {
+			return false;
+		}
+	}
 }
