@@ -23,7 +23,7 @@ repositories {
 }
 
 ext {
-    springVersion = '3.5.3'
+    springVersion = '3.5.5'
     lombokVersion = '1.18.38'
 }
 
