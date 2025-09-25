@@ -38,7 +38,7 @@ dependencies {
     implementation("org.apache.httpcomponents.client5:httpclient5:5.5")
 
     implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.30")
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.20.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.22.0")
 
     implementation("org.springframework.boot:spring-boot-starter-mail:${springVersion}")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springVersion}")
