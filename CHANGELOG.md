@@ -1,5 +1,5 @@
 ## Version 1.0.0
-**Release Date:** 2025-09-10
+**Release Date:** 2025-09-25
 
 ### New Features
 - **Scan & Report:** Generate reports for endpoints via DB ID.
@@ -7,12 +7,12 @@
 - **List Endpoints:** View all endpoints or details for a specific ID.
 
 ### Dependency Versions
-- **SpringBoot** 3.5.5
-- **Lombok:** 1.18.38
-- **PostgreSQL:** 42.7.7
+- **SpringBoot** 3.5.6
+- **Lombok:** 1.18.42
+- **PostgreSQL:** 42.7.8
 - **ZapClient** 1.16.0
 - **HttpClient5** 5.5
-- **OpenHtmlToPdf** 1.1.30
-- **Sentry** 8.20.0
-- **Spotless** 7.2.1
+- **OpenHtmlToPdf** 1.1.31
+- **Sentry** 8.22.0
+- **Spotless** 8.0.0
 - **ShadowJar** 8.1.1
