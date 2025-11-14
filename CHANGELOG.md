@@ -1,3 +1,9 @@
+## Unversioned
+
+### Dependency Versions
+- **SpringBoot** 3.5.7
+- **Sentry** 8.25.0
+
 ## Version 1.0.0
 **Release Date:** 2025-10-05
 
