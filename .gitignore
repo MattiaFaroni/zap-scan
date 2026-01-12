@@ -41,3 +41,4 @@ out/
 docker/*
 config/*
 build.properties
+application-dev.properties

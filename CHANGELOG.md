@@ -1,8 +1,12 @@
 ## Unversioned
 
 ### Dependency Versions
-- **SpringBoot** 3.5.7
-- **Sentry** 8.25.0
+- **SpringBoot** 3.5.9
+- **Spotless** 8.1.0
+- **Sentry** 8.29.0
+- **ZapClient** 1.17.0
+- **HttpClient5** 5.6
+- **OpenHtmlToPdf** 1.1.36
 
 ## Version 1.0.0
 **Release Date:** 2025-10-05
