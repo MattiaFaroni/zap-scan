@@ -31,7 +31,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
     compileOnly("org.projectlombok:lombok:${lombokVersion}")
 
-    implementation("org.postgresql:postgresql:42.7.8")
+    implementation("org.postgresql:postgresql:42.7.9")
 
     implementation("org.zaproxy:zap-clientapi:1.17.0")
     implementation("org.apache.httpcomponents.client5:httpclient5:5.6")
