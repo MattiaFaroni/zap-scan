@@ -36,7 +36,7 @@ dependencies {
     implementation("org.zaproxy:zap-clientapi:1.17.0")
     implementation("org.apache.httpcomponents.client5:httpclient5:5.6")
 
-    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.36")
+    implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.37")
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.29.0")
 
     implementation("org.springframework.boot:spring-boot-starter-mail")
