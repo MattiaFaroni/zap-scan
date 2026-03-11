@@ -6,15 +6,16 @@ import java.io.ByteArrayOutputStream;
 public class HtmlToPdfConverter {
 
 	/**
-	 * Converts the given HTML content into a PDF document and returns the PDF as a byte array.
-	 * @param html the HTML content to be converted into a PDF document
-	 * @return a byte array containing the PDF representation of the given HTML content
-	 * @throws Exception if an error occurs during the PDF conversion process
+	 * Converts an HTML string into a PDF represented as a byte array.
+	 * @param html the HTML content to be converted into a PDF; must not be null.
+	 * @return a byte array containing the binary content of the generated PDF.
+	 * @throws Exception if an error occurs during the conversion process.
 	 */
 	public static byte[] convert(String html) throws Exception {
 		try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 			PdfRendererBuilder builder = new PdfRendererBuilder();
-			builder.useFastMode();
+			builder.usePdfVersion(1.7f);
+			builder.usePdfUaAccessibility(false);
 			builder.withHtmlContent(html, null);
 			builder.toStream(outputStream);
 			builder.run();

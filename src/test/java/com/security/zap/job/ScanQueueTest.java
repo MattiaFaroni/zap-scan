@@ -52,7 +52,6 @@ class ScanQueueTest {
 		endpoint.setUrl("https://example.com");
 
 		when(endpointRepository.findById(1)).thenReturn(Optional.of(endpoint));
-		when(zapService.isUrlKnown(anyString())).thenReturn(true);
 		when(zapService.isScanRunning()).thenReturn(false);
 		when(zapService.startScan(anyString())).thenReturn("scan123");
 		when(zapService.getScanProgress("scan123")).thenReturn(100);
