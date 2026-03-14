@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -54,10 +55,9 @@ public class ScanQueue {
 	}
 
 	/**
-	 * Adds a {@link ScanJob} to the queue for processing.
-	 * @param job the scan job to be added to the queue; it contains the endpoint ID
-	 *            and an associated {@link SseEmitter} for streaming scan events.
-	 * @throws RuntimeException if the thread is interrupted during the enqueue action.
+	 * Adds a {@link ScanJob} to the processing queue for execution.
+	 * @param job the {@link ScanJob} containing details about the scanning task to enqueue.
+	 * @throws RuntimeException if the thread is interrupted while enqueuing the scan job.
 	 */
 	public void enqueue(ScanJob job) {
 		try {
@@ -70,10 +70,7 @@ public class ScanQueue {
 	}
 
 	/**
-	 * Continuously processes scan jobs from the queue.
-	 * The method retrieves jobs from a thread-safe queue in a blocking manner, ensuring
-	 * that jobs are processed in the order they are added to the queue. Each job is
-	 * executed by invoking the {@code runScan(ScanJob)} method.
+	 * Continuously processes scan jobs from the queue until interrupted.
 	 */
 	private void processQueue() {
 		while (true) {
@@ -93,13 +90,17 @@ public class ScanQueue {
 	}
 
 	/**
-	 * Executes a security scan for the specified {@link ScanJob}.
-	 * @param job the {@link ScanJob} containing the endpoint ID and {@link SseEmitter}
-	 *            for real-time streaming of scan progress.
+	 * Executes a scan job for a set of endpoints, generates reports, and sends notifications.
+	 * @param job the {@link ScanJob} object containing the details of the scan task, such as the endpoint ID and an {@link SseEmitter} for sending progress updates.
 	 */
 	private void runScan(ScanJob job) {
 		SseEmitter emitter = job.emitter();
 		List<MailService.ReportAttachment> attachments = new ArrayList<>();
+
+		AtomicBoolean cancelled = new AtomicBoolean(false);
+		emitter.onCompletion(() -> cancelled.set(true));
+		emitter.onTimeout(() -> cancelled.set(true));
+		emitter.onError(e -> cancelled.set(true));
 
 		try {
 			sendEventSafe(emitter, "info", "Scan started");
@@ -111,17 +112,25 @@ public class ScanQueue {
 			}
 
 			for (Endpoint endpoint : endpoints) {
-				attachments.add(scanEndpoint(endpoint, emitter));
+				if (cancelled.get()) {
+					log.warn("Client disconnected, aborting scan for {}", endpoint.getUrl());
+					break;
+				}
+				attachments.add(scanEndpoint(endpoint, emitter, cancelled));
 			}
 
-			sendEventSafe(emitter, "done", "All endpoints completed");
+			if (!cancelled.get()) {
 
-			try {
-				mailService.sendPdfReports(attachments);
-				log.info("Email with {} reports sent successfully", attachments.size());
-			} catch (Exception e) {
-				Sentry.captureException(e);
-				log.error("Error sending email with PDF reports", e);
+				sendEventSafe(emitter, "done", "All endpoints completed");
+
+				try {
+					mailService.sendPdfReports(attachments);
+					log.info("Email with {} reports sent successfully", attachments.size());
+				} catch (Exception e) {
+					Sentry.captureException(e);
+					log.error("Error sending email with PDF reports", e);
+				}
+				emitter.complete();
 			}
 
 		} catch (Exception e) {
@@ -129,60 +138,56 @@ public class ScanQueue {
 			log.error("Error while executing scan job", e);
 			sendEventSafe(emitter, "error", "Error: " + e.getMessage());
 			emitter.completeWithError(e);
-		} finally {
-			emitter.complete();
 		}
 	}
 
 	/**
-	 * Performs a security scan on the specified endpoint and streams progress updates to the provided emitter.
-	 * @param endpoint the {@link Endpoint} object representing the target endpoint to be scanned
-	 * @param emitter the {@link SseEmitter} used to stream progress updates during the scan
-	 * @return a {@link MailService.ReportAttachment} object containing the filename and PDF content of the generated report
-	 * @throws Exception if any error occurs during the scanning or report generation process
+	 * Scans the given endpoint for vulnerabilities, generates a report, and returns an email attachment containing the report.
+	 * @param endpoint the {@link Endpoint} to be scanned; contains details such as the URL to be checked.
+	 * @param emitter the {@link SseEmitter} used to send progress updates to the client during the scan.
+	 * @param cancelled an {@link AtomicBoolean} flag indicating whether the scan should be stopped; if set to true, the scan will be interrupted.
+	 * @return a {@link MailService.ReportAttachment} containing the filename and binary content of the generated PDF report for the endpoint.
+	 * @throws Exception if an error occurs during the scanning process, report generation, or interaction with external services.
 	 */
-	private MailService.ReportAttachment scanEndpoint(Endpoint endpoint, SseEmitter emitter) throws Exception {
+	private MailService.ReportAttachment scanEndpoint(Endpoint endpoint, SseEmitter emitter, AtomicBoolean cancelled)
+			throws Exception {
+		sendEventSafe(emitter, "progress", "Preparing scan for " + endpoint.getUrl());
+		zapService.prepareSession(endpoint);
 
-		if (!zapService.isUrlKnown(endpoint.getUrl())) {
-			zapService.accessUrl(endpoint.getUrl());
-			Thread.sleep(2000);
-		}
+		String scanId = zapService.startScan(endpoint.getUrl());
+		sendEventSafe(emitter, "progress", "Scanning " + endpoint.getUrl());
 
-		if (zapService.isScanRunning()) {
-			sendEventSafe(emitter, "info", "Another scan is currently running, waiting...");
-			while (zapService.isScanRunning()) {
-				Thread.sleep(2000);
+		int progress = 0;
+		while (progress < 100) {
+
+			if (cancelled.get()) {
+				log.warn("Client disconnected, stopping poll for {}", endpoint.getUrl());
+				throw new InterruptedException("Client disconnected");
+			}
+
+			progress = zapService.getScanProgress(scanId);
+			sendEventSafe(emitter, "progress", endpoint.getUrl() + " -> " + progress + "%");
+			if (progress < 100) {
+				Thread.sleep(SCAN_POLL_INTERVAL_MS);
 			}
 		}
 
-		sendEventSafe(emitter, "progress", "Scanning " + endpoint.getUrl());
-
-		zapService.newSession("session-" + endpoint.getId(), true);
-		zapService.accessUrl(endpoint.getUrl());
-		String scanId = zapService.startScan(endpoint.getUrl());
-
-		while (zapService.getScanProgress(scanId) < 100) {
-			int progress = zapService.getScanProgress(scanId);
-			sendEventSafe(emitter, "progress", endpoint.getUrl() + " -> " + progress + "%");
-			Thread.sleep(SCAN_POLL_INTERVAL_MS);
-		}
-
+		sendEventSafe(emitter, "progress", "Generating report for " + endpoint.getUrl());
 		String reportHtml = zapService.getHtmlReport();
-		byte[] reportPdf = HtmlToPdfConverter.convert(reportHtml);
 
+		byte[] reportPdf = HtmlToPdfConverter.convert(reportHtml);
 		Report report = createReport(endpoint, reportPdf);
 		reportRepository.save(report);
 
 		sendEventSafe(emitter, "result", "Completed: " + endpoint.getUrl());
-
 		return new MailService.ReportAttachment(report.getFilename(), reportPdf);
 	}
 
 	/**
-	 * Creates a new {@link Report} object associated with the provided {@link Endpoint} and containing the supplied PDF content.
-	 * @param endpoint the {@link Endpoint} object to which the report is linked
-	 * @param pdfContent the PDF content of the report as a byte array
-	 * @return a {@link Report} object initialized with the provided endpoint and PDF content
+	 * Creates a report for the specified {@link Endpoint} using the given PDF content.
+	 * @param endpoint the {@link Endpoint} for which the report is being generated; its details are used to set the report's associated endpoint and filename.
+	 * @param pdfContent a byte array representing the binary content of the PDF report.
+	 * @return a {@link Report} object populated with the provided endpoint details, execution timestamp, filename, content type, and PDF content.
 	 */
 	private Report createReport(Endpoint endpoint, byte[] pdfContent) {
 		Report report = new Report();
@@ -196,10 +201,10 @@ public class ScanQueue {
 	}
 
 	/**
-	 * Sends a Server-Sent Event (SSE) to the specified {@link SseEmitter} with the given event name and data.
-	 * @param emitter the {@link SseEmitter} to which the SSE event is sent
-	 * @param name the name of the SSE event
-	 * @param data the data to include in the SSE event
+	 * Sends a server-sent event (SSE) to the provided {@link SseEmitter} with a specific event name and data.
+	 * @param emitter the {@link SseEmitter} used to send the event to the client.
+	 * @param name the name of the event to be sent.
+	 * @param data the data payload associated with the event.
 	 */
 	private void sendEventSafe(SseEmitter emitter, String name, String data) {
 		try {
@@ -211,10 +216,9 @@ public class ScanQueue {
 	}
 
 	/**
-	 * Retrieves a list of {@link Endpoint} objects associated with the given {@link ScanJob}.
-	 * @param job the {@link ScanJob} containing the ID of the endpoint to retrieve
-	 * @return a list of {@link Endpoint} objects; either a single-element list if the endpoint ID
-	 *         exists, or all endpoints from the repository if no specific ID is provided
+	 * Retrieves a list of endpoints associated with the specified scan job.
+	 * @param job the {@link ScanJob} containing the endpoint ID to look up; if the ID is null, all endpoints are retrieved.
+	 * @return a list of {@link Endpoint} objects associated with the scan job, or all available endpoints if none are found for the given ID.
 	 */
 	private List<Endpoint> getEndpoints(ScanJob job) {
 		return Optional.ofNullable(job.endpointId())

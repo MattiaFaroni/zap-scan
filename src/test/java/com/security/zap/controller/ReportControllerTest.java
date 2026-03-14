@@ -11,14 +11,16 @@ import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+@ExtendWith(MockitoExtension.class)
 public class ReportControllerTest {
 
 	private MockMvc mockMvc;
@@ -31,13 +33,16 @@ public class ReportControllerTest {
 
 	private Report report;
 
+	private static final String DATE_STR = "2025-09-08";
+	private static final String TIME_STR = "10:00:00";
+	private static final int ENDPOINT_ID = 1;
+
 	@BeforeEach
 	void setUp() {
-		MockitoAnnotations.openMocks(this);
 		mockMvc = MockMvcBuilders.standaloneSetup(reportController).build();
 
 		Endpoint endpoint = new Endpoint();
-		endpoint.setId(1);
+		endpoint.setId(ENDPOINT_ID);
 		endpoint.setName("Endpoint 1");
 		endpoint.setUrl("/api/test");
 		endpoint.setHttpMethod("GET");
@@ -45,7 +50,7 @@ public class ReportControllerTest {
 		report = new Report();
 		report.setId(1);
 		report.setEndpoint(endpoint);
-		report.setExecutedAt(Instant.parse("2025-09-08T10:00:00Z"));
+		report.setExecutedAt(Instant.parse(DATE_STR + "T" + TIME_STR + "Z"));
 		report.setFilename("report.pdf");
 		report.setContentType(MediaType.APPLICATION_PDF_VALUE);
 		report.setReport("Test PDF Content".getBytes());
@@ -72,43 +77,92 @@ public class ReportControllerTest {
 		verify(reportRepository, times(1)).findByEndpointIdAndExecutedAtBetween(1, startOfDay, endOfDay);
 	}
 
-	@Test
-	void testDownloadReportByDateNotFound() throws Exception {
-		Instant startOfDay =
-				LocalDate.parse("2025-09-08").atStartOfDay(ZoneOffset.UTC).toInstant();
-		Instant endOfDay = LocalDate.parse("2025-09-08")
+	/**
+	 * Calculates the start of the day in UTC for a given date.
+	 * @return An {@code Instant} representing the beginning of the day (00:00:00) in UTC for the date specified in {@code ReportControllerTest.DATE_STR}.
+	 */
+	private Instant startOfDay() {
+		return LocalDate.parse(ReportControllerTest.DATE_STR)
+				.atStartOfDay(ZoneOffset.UTC)
+				.toInstant();
+	}
+
+	/**
+	 * Calculates the end of the day in UTC for a given date.
+	 * @return An {@code Instant} representing the end of the day (00:00:00 of the next day) in UTC for the date specified in {@code ReportControllerTest.DATE_STR}.
+	 */
+	private Instant endOfDay() {
+		return LocalDate.parse(ReportControllerTest.DATE_STR)
 				.plusDays(1)
 				.atStartOfDay(ZoneOffset.UTC)
 				.toInstant();
-
-		when(reportRepository.findByEndpointIdAndExecutedAtBetween(1, startOfDay, endOfDay))
-				.thenReturn(Collections.emptyList());
-
-		mockMvc.perform(get("/scan/reports").param("endpoint_id", "1").param("date", "2025-09-08"))
-				.andExpect(status().isNotFound());
-
-		verify(reportRepository, times(1)).findByEndpointIdAndExecutedAtBetween(1, startOfDay, endOfDay);
 	}
 
 	@Test
-	void testDownloadReportByDateAndTimeFound() throws Exception {
-		LocalDate date = LocalDate.parse("2025-09-08");
-		LocalTime time = LocalTime.parse("10:00:00");
-		Instant start = date.atTime(time).toInstant(ZoneOffset.UTC);
-		Instant end = date.atTime(time).plusSeconds(1).toInstant(ZoneOffset.UTC);
-
-		when(reportRepository.findByEndpointIdAndExecutedAtBetween(1, start, end))
-				.thenReturn(Collections.singletonList(report));
+	void testDownloadReportByDate_Found() throws Exception {
+		when(reportRepository.findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, startOfDay(), endOfDay()))
+				.thenReturn(List.of(report));
 
 		mockMvc.perform(get("/scan/reports")
-						.param("endpoint_id", "1")
-						.param("date", "2025-09-08")
-						.param("time", "10:00:00"))
+						.param("endpoint_id", String.valueOf(ENDPOINT_ID))
+						.param("date", DATE_STR))
 				.andExpect(status().isOk())
 				.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report.pdf\""))
 				.andExpect(content().contentType(MediaType.APPLICATION_PDF))
 				.andExpect(content().bytes(report.getReport()));
 
-		verify(reportRepository, times(1)).findByEndpointIdAndExecutedAtBetween(1, start, end);
+		verify(reportRepository).findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, startOfDay(), endOfDay());
+	}
+
+	@Test
+	void testDownloadReportByDate_NotFound() throws Exception {
+		when(reportRepository.findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, startOfDay(), endOfDay()))
+				.thenReturn(Collections.emptyList());
+
+		mockMvc.perform(get("/scan/reports")
+						.param("endpoint_id", String.valueOf(ENDPOINT_ID))
+						.param("date", DATE_STR))
+				.andExpect(status().isNotFound());
+
+		verify(reportRepository).findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, startOfDay(), endOfDay());
+	}
+
+	@Test
+	void testDownloadReportByDateAndTime_Found() throws Exception {
+		Instant start =
+				LocalDate.parse(DATE_STR).atTime(LocalTime.parse(TIME_STR)).toInstant(ZoneOffset.UTC);
+		Instant end = start.plusSeconds(1);
+
+		when(reportRepository.findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, start, end))
+				.thenReturn(List.of(report));
+
+		mockMvc.perform(get("/scan/reports")
+						.param("endpoint_id", String.valueOf(ENDPOINT_ID))
+						.param("date", DATE_STR)
+						.param("time", TIME_STR))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report.pdf\""))
+				.andExpect(content().contentType(MediaType.APPLICATION_PDF))
+				.andExpect(content().bytes(report.getReport()));
+
+		verify(reportRepository).findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, start, end);
+	}
+
+	@Test
+	void testDownloadReportByDateAndTime_NotFound() throws Exception {
+		Instant start =
+				LocalDate.parse(DATE_STR).atTime(LocalTime.parse(TIME_STR)).toInstant(ZoneOffset.UTC);
+		Instant end = start.plusSeconds(1);
+
+		when(reportRepository.findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, start, end))
+				.thenReturn(Collections.emptyList());
+
+		mockMvc.perform(get("/scan/reports")
+						.param("endpoint_id", String.valueOf(ENDPOINT_ID))
+						.param("date", DATE_STR)
+						.param("time", TIME_STR))
+				.andExpect(status().isNotFound());
+
+		verify(reportRepository).findByEndpointIdAndExecutedAtBetween(ENDPOINT_ID, start, end);
 	}
 }

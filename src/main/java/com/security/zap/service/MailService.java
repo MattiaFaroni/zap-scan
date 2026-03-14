@@ -42,6 +42,10 @@ public class MailService {
 	 *                   including issues with loading the email template.
 	 */
 	public void sendPdfReports(List<ReportAttachment> attachments) throws Exception {
+		if (attachments == null || attachments.isEmpty()) {
+			log.warn("No attachments to send, skipping email");
+			return;
+		}
 
 		String htmlContent;
 		try {
