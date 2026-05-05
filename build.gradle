@@ -1,8 +1,8 @@
 plugins {
 	id 'java'
-    id "io.sentry.jvm.gradle" version "6.3.0"
+    id "io.sentry.jvm.gradle" version "6.6.0"
     id 'com.diffplug.spotless' version '8.4.0'
-	id 'org.springframework.boot' version '4.0.5'
+	id 'org.springframework.boot' version '4.0.6'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -21,7 +21,7 @@ repositories {
 }
 
 ext {
-    lombokVersion = '1.18.44'
+    lombokVersion = '1.18.46'
 }
 
 dependencies {
@@ -29,12 +29,12 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
     compileOnly("org.projectlombok:lombok:${lombokVersion}")
 
-    implementation("org.postgresql:postgresql:42.7.10")
+    implementation("org.postgresql:postgresql:42.7.11")
 
     implementation("org.zaproxy:zap-clientapi:1.17.0")
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.6")
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.6.1")
 
-    implementation("org.jsoup:jsoup:1.22.1")
+    implementation("org.jsoup:jsoup:1.22.2")
     implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.37")
 
     implementation("org.springframework.boot:spring-boot-starter-mail")

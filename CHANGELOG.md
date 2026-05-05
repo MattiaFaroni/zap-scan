@@ -1,10 +1,13 @@
 ## Unversioned
 
 ### Dependency Versions
-- **SpringBoot** 4.0.5
-- **Sentry** 6.3.0
+- **SpringBoot** 4.0.6
+- **Sentry** 6.6.0
 - **Spotless** 8.4.0
-- **Lombok** 1.18.44
+- **Lombok** 1.18.46
+- **PostgreSQL** 42.7.11
+- **HttpClient5** 5.6.1
+- **Jsoup** 1.22.2
 
 ## Version 2.0.0
 **Release Date:** 2026-03-14
