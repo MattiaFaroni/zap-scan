@@ -2,8 +2,8 @@
 
 ### Dependency Versions
 - **SpringBoot** 4.0.6
-- **Sentry** 6.6.0
-- **Spotless** 8.4.0
+- **Sentry** 6.9.0
+- **Spotless** 8.6.0
 - **Lombok** 1.18.46
 - **PostgreSQL** 42.7.11
 - **HttpClient5** 5.6.1
