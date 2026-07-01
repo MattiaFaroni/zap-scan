@@ -32,7 +32,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.11")
 
     implementation("org.zaproxy:zap-clientapi:1.17.0")
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.6.1")
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.6.2")
 
     implementation("org.jsoup:jsoup:1.22.2")
     implementation("io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.37")
