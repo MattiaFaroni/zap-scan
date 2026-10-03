@@ -2,13 +2,13 @@
 
 ### Dependency Versions
 - **SpringBoot** 4.1.1
-- **Sentry** 6.21.0
-- **Spotless** 8.10.1
-- **Lombok** 1.18.46
+- **Sentry** 6.23.0
+- **Spotless** 8.10.2
+- **Lombok** 1.18.48
 - **PostgreSQL** 42.7.13
 - **HttpClient5** 5.6.4
 - **Jsoup** 1.23.2
-- **OpenHtmlToPdf** 1.1.83
+- **OpenHtmlToPdf** 1.1.87
 
 ## Version 2.0.0
 **Release Date:** 2026-03-14
